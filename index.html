@@ -3,106 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام مدرسة الحصايا - رفع ملفات</title>
+    <title>نتائج مدرسة الحصايا الثانوية</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        :root { --orange: #e67e22; --beige: #fdf5e6; }
-        body { font-family: 'Cairo', sans-serif; background-color: var(--beige); text-align: center; margin: 0; padding: 20px; }
-        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 600px; margin: auto; }
-        .upload-area { border: 2px dashed #27ae60; padding: 30px; border-radius: 15px; background: #fafffa; cursor: pointer; margin: 20px 0; }
-        button { width: 100%; padding: 15px; background: #e67e22; color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 16px; }
-        table { width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 14px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
-        th { background: #27ae60; color: white; }
-        .hidden { display: none; }
+        :root { --orange: #e67e22; --beige: #fdf5e6; --brown: #5d4037; }
+        body { font-family: 'Cairo', sans-serif; background-color: var(--beige); margin: 0; color: var(--brown); }
+        header { background: linear-gradient(135deg, #f39c12, #e67e22); color: white; padding: 40px; text-align: center; border-radius: 0 0 30px 30px; }
+        .container { max-width: 500px; margin: -30px auto 40px; padding: 20px; }
+        .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 12px; font-family: 'Cairo'; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; background: var(--orange); color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; }
+        #adminArea { display: none; border: 2px dashed #27ae60; background: #fafffa; }
+        .upload-btn { background: #27ae60; margin-bottom: 10px; }
+        .result-table { width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 14px; }
+        .result-table th, .result-table td { border: 1px solid #ddd; padding: 8px; text-align: center; }
     </style>
 </head>
 <body>
 
-    <div id="loginSection" class="card">
-        <h2>دخول الإدارة - مدرسة الحصايا</h2>
-        <input type="text" id="adminUser" placeholder="الاسم السري" style="width:90%; padding:10px; margin:10px;">
-        <input type="password" id="adminPass" placeholder="الكود السري" style="width:90%; padding:10px; margin:10px;">
-        <button onclick="checkAuth()">دخول للوحة الرفع</button>
+<header>
+    <h1>مدرسة الحصايا الثانوية المشتركة</h1>
+    <p>بوابة النتائج الرسمية</p>
+</header>
+
+<div class="container">
+    <div id="studentView" class="card">
+        <h2 style="color: var(--orange);">استعلم عن نتيجتك</h2>
+        <input type="text" id="nameIn" placeholder="أدخل اسم الطالب">
+        <input type="text" id="codeIn" placeholder="أدخل الكود">
+        <button onclick="start()">عرض النتيجة</button>
+        <div id="msg"></div>
     </div>
 
-    <div id="adminPanel" class="card hidden">
-        <h2 style="color: #27ae60;">رفع ملف النتائج (Excel)</h2>
-        <p>اختاري ملف الإكسيل من موبايلك (يجب أن يحتوي على عمودين: الاسم والدرجة)</p>
-        
-        <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-            اضغطي هنا لاختيار ملف Excel 📁
-            <input type="file" id="fileInput" class="hidden" accept=".xlsx, .xls">
-        </div>
-
+    <div id="adminArea" class="card">
+        <h2 style="color: #27ae60;">لوحة المدير - رفع إكسيل</h2>
+        <input type="file" id="fileInput" style="display:none" accept=".xlsx, .xls">
+        <button class="upload-btn" onclick="document.getElementById('fileInput').click()">📁 اختاري ملف الإكسيل</button>
         <div id="status"></div>
-
-        <div id="tableContainer" class="hidden">
-            <h3>البيانات التي تم استيرادها:</h3>
-            <table id="displayTable">
-                <thead>
-                    <tr>
-                        <th>الاسم</th>
-                        <th>الدرجة</th>
-                        <th>الكود المولد</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-            <button onclick="location.reload()" style="background:#7f8c8d; margin-top:20px;">خروج وحفظ</button>
-        </div>
+        <table id="resTable" class="result-table" style="display:none">
+            <thead><tr><th>الاسم</th><th>الدرجة</th><th>كوده</th></tr></thead>
+            <tbody></tbody>
+        </table>
+        <button onclick="location.reload()" style="background:#7f8c8d; margin-top:10px;">خروج</button>
     </div>
+</div>
 
 <script>
     let db = JSON.parse(localStorage.getItem('schoolResults')) || [];
 
-    function checkAuth() {
-        if (document.getElementById('adminUser').value === "عبدالحميد" && document.getElementById('adminPass').value === "77777") {
-            document.getElementById('loginSection').classList.add('hidden');
-            document.getElementById('adminPanel').classList.remove('hidden');
-        } else { alert("خطأ في بيانات الدخول"); }
+    function start() {
+        const n = document.getElementById('nameIn').value.trim();
+        const c = document.getElementById('codeIn').value.trim();
+        
+        let cleanN = n.replace(/\s+/g, '').replace(/ى/g, 'ي');
+        if (cleanN === "عبدالحميد" && c === "77777") {
+            document.getElementById('studentView').style.display = 'none';
+            document.getElementById('adminArea').style.display = 'block';
+            return;
+        }
+
+        const s = db.find(item => item.name === n && item.code === c);
+        if (s) {
+            document.getElementById('msg').innerHTML = `<div style="color:green; margin-top:15px;">مبروك يا ${s.name}<br>درجتك: ${s.grade}</div>`;
+        } else {
+            document.getElementById('msg').innerHTML = `<div style="color:red; margin-top:15px;">البيانات غير صحيحة</div>`;
+        }
     }
 
     document.getElementById('fileInput').addEventListener('change', function(e) {
         const file = e.target.files[0];
         const reader = new FileReader();
-
         reader.onload = function(e) {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, {type: 'array'});
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1});
             
-            // تحويل الإكسيل لبيانات JSON
-            const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
-            
-            processData(jsonData);
+            const tbody = document.querySelector("#resTable tbody");
+            tbody.innerHTML = "";
+            db = [];
+
+            for (let i = 1; i < rows.length; i++) {
+                if (rows[i][0]) {
+                    const code = "HS-" + Math.floor(1000 + Math.random() * 9000);
+                    db.push({ name: rows[i][0].toString().trim(), grade: rows[i][1], code: code });
+                    tbody.innerHTML += `<tr><td>${rows[i][0]}</td><td>${rows[i][1]}</td><td>${code}</td></tr>`;
+                }
+            }
+            localStorage.setItem('schoolResults', JSON.stringify(db));
+            document.getElementById('resTable').style.display = 'table';
+            document.getElementById('status').innerHTML = "✅ تم حفظ البيانات!";
         };
         reader.readAsArrayBuffer(file);
     });
-
-    function processData(rows) {
-        const tbody = document.querySelector("#displayTable tbody");
-        tbody.innerHTML = "";
-        db = [];
-
-        // نتجاهل أول صف لو فيه عناوين (الاسم، الدرجة)
-        for (let i = 1; i < rows.length; i++) {
-            const name = rows[i][0]; // العمود الأول
-            const grade = rows[i][1]; // العمود الثاني
-            const code = "HS-" + Math.floor(1000 + Math.random() * 9000);
-
-            if (name) {
-                db.push({ name: name, grade: grade, code: code });
-                tbody.innerHTML += `<tr><td>${name}</td><td>${grade}</td><td>${code}</td></tr>`;
-            }
-        }
-
-        localStorage.setItem('schoolResults', JSON.stringify(db));
-        document.getElementById('tableContainer').classList.remove('hidden');
-        document.getElementById('status').innerHTML = "<p style='color:green'>✅ تم رفع " + db.length + " طالب بنجاح!</p>";
-    }
 </script>
 </body>
 </html>
