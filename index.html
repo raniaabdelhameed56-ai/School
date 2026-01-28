@@ -3,106 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>المحلل الذكي - مدرسة الحصايا</title>
+    <title>بوابة نتائج مدرسة الحصايا</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root { --main: #e67e22; --bg: #fdf5e6; }
-        body { font-family: 'Cairo', sans-serif; background: var(--bg); text-align: center; padding: 20px; }
-        .container { max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); }
-        .upload-zone { border: 3px dashed var(--main); padding: 30px; border-radius: 20px; cursor: pointer; background: #fffcf9; margin-bottom: 20px; }
-        input[type="text"] { width: 90%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 12px; font-family: 'Cairo'; }
-        button { background: var(--main); color: white; border: none; padding: 15px 30px; border-radius: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 16px; }
-        .admin-btn { background: #7f8c8d; margin-top: 20px; font-size: 12px; width: auto; padding: 5px 15px; }
-        #adminPanel { display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; }
+        body { font-family: 'Cairo', sans-serif; background: var(--bg); margin: 0; padding: 20px; text-align: center; }
+        .card { background: white; padding: 30px; border-radius: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
+        input { width: 100%; padding: 15px; margin: 10px 0; border: 1px solid #ddd; border-radius: 12px; box-sizing: border-box; text-align: center; font-size: 16px; }
+        button { width: 100%; padding: 15px; background: var(--main); color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .admin-zone { margin-top: 30px; border: 2px dashed #ccc; padding: 15px; border-radius: 15px; background: #fafafa; }
         table { width: 100%; margin-top: 20px; border-collapse: collapse; }
-        th, td { border: 1px solid #eee; padding: 12px; text-align: center; }
+        th, td { border: 1px solid #eee; padding: 10px; text-align: center; }
         th { background: var(--main); color: white; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1 style="color: var(--main);">المحلل الذكي للنتائج 🤖</h1>
-    
-    <div id="searchSection">
-        <p>أدخل بيانات الطالب للاستعلام</p>
-        <input type="text" id="studentName" placeholder="الاسم كما هو في الكشف">
-        <input type="text" id="studentCode" placeholder="رقم الجلوس أو الكود">
-        <button onclick="search()">استخراج النتيجة</button>
-        <div id="resultOutput"></div>
-    </div>
+<div class="card">
+    <h1 style="color: var(--main); margin-bottom: 5px;">مدرسة الحصايا الثانوية</h1>
+    <p style="color: #666;">استعلم عن نتيجتك برقم الجلوس</p>
 
-    <button class="admin-btn" onclick="toggleAdmin()">لوحة رفع الملفات (للمسؤول فقط)</button>
+    <input type="text" id="seatNum" placeholder="أدخل رقم الجلوس فقط">
+    <button onclick="search()">بحث عن النتيجة</button>
+    <div id="result"></div>
 
-    <div id="adminPanel">
-        <div class="upload-zone" onclick="document.getElementById('excelInput').click()">
-            <p>📁 اضغطي هنا لرفع أي ملف Excel</p>
-            <input type="file" id="excelInput" style="display:none" accept=".xlsx, .xls">
-        </div>
-        <div id="fileStatus"></div>
+    <div class="admin-zone">
+        <p style="font-size: 12px; color: #888;">لوحة الإدارة: ارفعي ملف عادل.xlsx هنا 👇</p>
+        <input type="file" id="uploadFile" accept=".xlsx, .xls" style="font-size: 11px;">
+        <p id="status" style="font-size: 12px; color: green;"></p>
     </div>
 </div>
 
 <script>
-    let masterData = JSON.parse(localStorage.getItem('smartDB')) || [];
+    let db = [];
 
-    // وظيفة التحليل الذكي للملف
-    document.getElementById('excelInput').addEventListener('change', function(e) {
+    // 1. المحرك اللي بيفهم أي ملف إكسيل ترفعيه
+    document.getElementById('uploadFile').addEventListener('change', function(e) {
         const file = e.target.files[0];
         const reader = new FileReader();
         
         reader.onload = function(event) {
             const data = new Uint8Array(event.target.result);
             const workbook = XLSX.read(data, {type: 'array'});
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const json = XLSX.utils.sheet_to_json(sheet);
-
-            if (json.length === 0) { alert("الملف فارغ!"); return; }
-
-            // 🧠 الذكاء الاصطناعي: تحديد الأعمدة تلقائياً
-            const headers = Object.keys(json[0]);
-            let nameKey = headers.find(h => h.includes("اسم"));
-            let codeKey = headers.find(h => h.includes("رقم") || h.includes("جلوس") || h.includes("كود"));
-
-            masterData = json.map(row => {
-                let entry = { name: row[nameKey]?.toString().trim(), code: row[codeKey]?.toString().trim(), details: {} };
-                for (let key in row) {
-                    if (key !== nameKey && key !== codeKey) {
-                        entry.details[key] = row[key];
-                    }
-                }
-                return entry;
-            });
-
-            localStorage.setItem('smartDB', JSON.stringify(masterData));
-            document.getElementById('fileStatus').innerHTML = `<b style="color:green">✅ تم تحليل الملف! تم العثور على ${masterData.length} طالب.</b>`;
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            // تحويل الإكسيل لبيانات بيفهمها الموقع
+            db = XLSX.utils.sheet_to_json(firstSheet);
+            document.getElementById('status').innerText = "✅ تم ربط الملف بنجاح! جاهز للبحث.";
         };
         reader.readAsArrayBuffer(file);
     });
 
+    // 2. وظيفة البحث برقم الجلوس
     function search() {
-        const name = document.getElementById('studentName').value.trim();
-        const code = document.getElementById('studentCode').value.trim();
-        const output = document.getElementById('resultOutput');
+        const code = document.getElementById('seatNum').value.trim();
+        const output = document.getElementById('result');
 
-        const student = masterData.find(s => s.name === name && s.code === code);
+        if (db.length === 0) {
+            output.innerHTML = "<p style='color:red'>برجاء رفع ملف الإكسيل أولاً من لوحة الإدارة!</p>";
+            return;
+        }
+
+        // الموقع هيدور في عمود "رقم الجلوس" (تأكدي إن ده اسمه في ملفك)
+        const student = db.find(s => String(s["رقم الجلوس"]) === code || String(s["رقم_الجلوس"]) === code);
 
         if (student) {
-            let html = `<div style="margin-top:20px; border-top:2px solid var(--main);"><h3>شهادة الطالب: ${student.name}</h3><table>`;
-            for (let subject in student.details) {
-                html += `<tr><th>${subject}</th><td>${student.details[subject]}</td></tr>`;
+            let resHtml = `<div style="margin-top:20px; text-align:right;">
+                <b>الاسم: ${student["الاسم"] || "غير مسجل"}</b>
+                <table><tr><th>المادة</th><th>الدرجة</th></tr>`;
+            
+            for (let key in student) {
+                if (key !== "الاسم" && key !== "رقم الجلوس" && key !== "رقم_الجلوس") {
+                    resHtml += `<tr><td>${key}</td><td>${student[key]}</td></tr>`;
+                }
             }
-            html += `</table><button onclick="window.print()" style="margin-top:10px; background:#27ae60">طباعة الشهادة 🖨️</button></div>`;
-            output.innerHTML = html;
+            resHtml += `</table></div>`;
+            output.innerHTML = resHtml;
         } else {
-            output.innerHTML = "<p style='color:red; margin-top:20px;'>❌ لم يتم العثور على الطالب. تأكد من مطابقة الاسم لرقم الجلوس.</p>";
+            output.innerHTML = "<p style='color:red'>رقم الجلوس غير موجود في الملف!</p>";
         }
-    }
-
-    function toggleAdmin() {
-        let p = prompt("أدخلي كلمة السر:");
-        if (p === "77777") document.getElementById('adminPanel').style.display = 'block';
     }
 </script>
 
