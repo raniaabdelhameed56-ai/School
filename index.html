@@ -3,102 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نتائج مدرسة الحصايا الثانوية</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <title>نتيجة الثانوية العامة</title>
     <style>
-        :root { --primary: #d35400; --secondary: #2c3e50; --bg: #f4f7f6; }
-        body { font-family: 'Cairo', sans-serif; background: var(--bg); margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-        .container { background: white; width: 95%; max-width: 450px; padding: 30px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); text-align: center; border-top: 8px solid var(--primary); }
-        h1 { color: var(--secondary); font-size: 24px; margin-bottom: 5px; }
-        input { width: 100%; padding: 15px; border: 2px solid #eee; border-radius: 12px; font-size: 18px; text-align: center; font-family: 'Cairo'; margin-bottom: 15px; box-sizing: border-box; }
-        button { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; width: 100%; }
-        .result-card { margin-top: 25px; padding: 20px; background: #fff; border-radius: 15px; border: 1px solid #eee; text-align: right; display: none; }
-        table { width: 100%; margin-top: 15px; border-collapse: collapse; }
-        th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: center; }
-        th { background: #fdf2e9; color: var(--primary); }
-        #status { font-size: 12px; margin-top: 10px; font-weight: bold; }
+        :root {
+            --primary: #4e54c8;
+            --secondary: #8f94fb;
+            --success: #27ae60;
+        }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #4e54c8, #8f94fb);
+            min-height: 100vh; margin: 0; display: flex; justify-content: center; align-items: center;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            width: 95%; max-width: 600px; text-align: center; animation: fadeIn 0.8s ease;
+        }
+        h2 { color: var(--primary); margin-bottom: 20px; }
+        .search-box { display: flex; gap: 10px; margin-bottom: 30px; justify-content: center; }
+        input { 
+            padding: 12px; width: 60%; border: 2px solid #ddd; border-radius: 10px; 
+            font-size: 16px; outline: none; transition: 0.3s;
+        }
+        input:focus { border-color: var(--primary); }
+        button { 
+            padding: 12px 25px; background: var(--primary); color: white; border: none; 
+            border-radius: 10px; cursor: pointer; font-size: 16px; font-weight: bold;
+        }
+        button:hover { background: #3a40ac; transform: translateY(-2px); }
+
+        /* تنسيق الجدول */
+        .result-section { display: none; margin-top: 20px; border-top: 2px solid #eee; padding-top: 20px; }
+        .student-header { background: #f0f2f5; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+        .student-header h3 { margin: 5px 0; color: #333; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; overflow: hidden; border-radius: 10px; }
+        th { background: var(--primary); color: white; padding: 12px; }
+        td { padding: 12px; border: 1px solid #eee; background: white; }
+        tr:nth-child(even) td { background: #f9f9f9; }
+        .total-row { font-weight: bold; background: #e8f5e9 !important; color: var(--success); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>مدرسة الحصايا الثانوية</h1>
-    <p>بوابة النتائج الرسمية 🎓</p>
+    <h2>🎓 بوابة الاستعلام عن النتيجة</h2>
+    <div class="search-box">
+        <input type="text" id="seatNumberInput" placeholder="أدخل رقم الجلوس هنا...">
+        <button onclick="searchResult()">بحث</button>
+    </div>
 
-    <input type="text" id="seatNumber" placeholder="أدخل رقم الجلوس">
-    <button onclick="searchResult()">استخراج النتيجة</button>
+    <div id="loading" style="display:none;">جاري البحث...</div>
 
-    <div id="status"></div>
-
-    <div id="resultCard" class="result-card">
-        <div id="studentInfo"></div>
+    <div id="resultSection" class="result-section">
+        <div class="student-header">
+            <h3 id="displayName"></h3>
+            <p id="displaySeat"></p>
+        </div>
         <table>
-            <thead><tr><th>المادة</th><th>الدرجة</th></tr></thead>
-            <tbody id="gradesBody"></tbody>
+            <thead>
+                <tr>
+                    <th>المادة</th>
+                    <th>الدرجة</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                </tbody>
         </table>
     </div>
 </div>
 
 <script>
-    // 🛑 حطي رابط الـ CSV هنا (اللي آخره output=csv)
-    const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQGvEe5NpeC3FhY1bx-CjEHTLx_Au7wEZaGlyozvNIJwtTzEuxmlM8sFBFgYP2dhA/pub?output=csv"; 
+    const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTyPb3Mc0FJmGcWONu5zLtN2Sb8a9etmmydAUc4qJT8-4KW1kb0g2HUJ8wRLdI40-921ajLZcoGR-VX/pub?output=csv';
 
-    let studentsData = [];
+    async function searchResult() {
+        const seatNo = document.getElementById('seatNumberInput').value.trim();
+        if (!seatNo) { alert("من فضلك أدخل رقم الجلوس"); return; }
 
-    async function loadData() {
-        const status = document.getElementById('status');
-        status.innerText = "⏳ جاري الاتصال بالسيرفر...";
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('resultSection').style.display = 'none';
+
         try {
             const response = await fetch(sheetUrl);
-            const text = await response.text();
-            const lines = text.split('\n').filter(line => line.trim() !== "");
-            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            const data = await response.text();
+            
+            // تحويل الـ CSV إلى مصفوفة بيانات
+            const rows = data.split('\n').map(row => row.split(','));
+            const headers = rows[0]; // العناوين (رقم الجلوس، الاسم، المواد...)
+            
+            // البحث عن الطالب برقم الجلوس (بفرض أنه في العمود الأول)
+            const studentData = rows.find(row => row[0].trim() === seatNo);
 
-            studentsData = lines.slice(1).map(line => {
-                const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
-                let obj = {};
-                headers.forEach((h, i) => { obj[h] = values[i]; });
-                return obj;
-            });
-            status.innerText = "✅ النظام جاهز للاستخدام";
-            status.style.color = "green";
-        } catch (e) {
-            status.innerText = "⚠️ فشل في جلب البيانات. تأكدي من الرابط!";
-            status.style.color = "red";
+            if (studentData) {
+                displayData(headers, studentData);
+            } else {
+                alert("عفواً، رقم الجلوس غير موجود.");
+            }
+        } catch (error) {
+            console.error("Error fetching data:", error);
+            alert("حدث خطأ أثناء جلب البيانات.");
         }
+        document.getElementById('loading').style.display = 'none';
     }
 
-    loadData();
+    function displayData(headers, student) {
+        const tableBody = document.getElementById('tableBody');
+        tableBody.innerHTML = ""; // مسح النتائج السابقة
+        
+        document.getElementById('displayName').innerText = "الطالب: " + student[1]; // الاسم في العمود الثاني
+        document.getElementById('displaySeat').innerText = "رقم الجلوس: " + student[0];
 
-    function searchResult() {
-        const seat = document.getElementById('seatNumber').value.trim();
-        const card = document.getElementById('resultCard');
-        const body = document.getElementById('gradesBody');
-        const info = document.getElementById('studentInfo');
-
-        // البحث بذكاء في كل الخانات عن رقم الجلوس
-        const student = studentsData.find(s => Object.values(s).some(val => val === seat));
-
-        if (student) {
-            card.style.display = 'block';
-            let name = "";
-            for(let k in student) { if(k.includes("اسم")) name = student[k]; }
+        // عرض المواد (من العمود الثالث للأخير)
+        for (let i = 2; i < headers.length; i++) {
+            if(headers[i].trim() === "") continue;
             
-            info.innerHTML = `<h3>الاسم: ${name}</h3><p style="margin:0">رقم الجلوس: ${seat}</p>`;
+            const tr = document.createElement('tr');
+            // تمييز المجموع الكلي بلون مختلف
+            if (headers[i].includes("المجموع")) tr.className = "total-row";
             
-            let rows = "";
-            for (let key in student) {
-                if (!key.includes("اسم") && !key.includes("جلوس") && !key.includes("رقم") && student[key]) {
-                    rows += `<tr><td>${key}</td><td><b>${student[key]}</b></td></tr>`;
-                }
-            }
-            body.innerHTML = rows;
-        } else {
-            card.style.display = 'none';
-            alert("رقم الجلوس غير موجود في قاعدة البيانات!");
+            tr.innerHTML = `<td>${headers[i]}</td><td>${student[i]}</td>`;
+            tableBody.appendChild(tr);
         }
+
+        document.getElementById('resultSection').style.display = 'block';
     }
 </script>
 
 </body>
-</html>
+                </html>
