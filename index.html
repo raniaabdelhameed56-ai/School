@@ -8,24 +8,27 @@
     <style>
         :root { --primary: #d35400; --secondary: #2c3e50; --bg: #f4f7f6; }
         body { font-family: 'Cairo', sans-serif; background: var(--bg); margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-        .container { background: white; width: 95%; max-width: 500px; padding: 30px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); text-align: center; border-top: 8px solid var(--primary); }
-        h1 { color: var(--secondary); font-weight: 900; margin-bottom: 5px; font-size: 24px; }
+        .container { background: white; width: 95%; max-width: 450px; padding: 30px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); text-align: center; border-top: 8px solid var(--primary); }
+        h1 { color: var(--secondary); font-size: 24px; margin-bottom: 5px; }
         input { width: 100%; padding: 15px; border: 2px solid #eee; border-radius: 12px; font-size: 18px; text-align: center; font-family: 'Cairo'; margin-bottom: 15px; box-sizing: border-box; }
-        button { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; }
-        .result-card { margin-top: 25px; background: #fff; padding: 20px; border-radius: 15px; border: 1px solid #eee; text-align: right; display: none; }
+        button { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; width: 100%; }
+        .result-card { margin-top: 25px; padding: 20px; background: #fff; border-radius: 15px; border: 1px solid #eee; text-align: right; display: none; }
         table { width: 100%; margin-top: 15px; border-collapse: collapse; }
         th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: center; }
         th { background: #fdf2e9; color: var(--primary); }
+        #status { font-size: 12px; margin-top: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>مدرسة الحصايا الثانوية المشتركة</h1>
-    <p>استعلم عن نتيجتك برقم الجلوس 🎓</p>
+    <h1>مدرسة الحصايا الثانوية</h1>
+    <p>بوابة النتائج الرسمية 🎓</p>
 
     <input type="text" id="seatNumber" placeholder="أدخل رقم الجلوس">
-    <button onclick="searchResult()">عرض النتيجة</button>
+    <button onclick="searchResult()">استخراج النتيجة</button>
+
+    <div id="status"></div>
 
     <div id="resultCard" class="result-card">
         <div id="studentInfo"></div>
@@ -34,30 +37,34 @@
             <tbody id="gradesBody"></tbody>
         </table>
     </div>
-    <div id="msg" style="margin-top:20px; font-weight:bold;"></div>
 </div>
 
 <script>
-    const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQGvEe5NpeC3FhY1bx-CjEHTLx_Au7wEZaGlyozvNIJwtTzEuxmlM8sFBFgYP2dhA/pub?output=csv";
+    // 🛑 حطي رابط الـ CSV هنا (اللي آخره output=csv)
+    const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQGvEe5NpeC3FhY1bx-CjEHTLx_Au7wEZaGlyozvNIJwtTzEuxmlM8sFBFgYP2dhA/pub?output=csv"; 
+
     let studentsData = [];
 
     async function loadData() {
-        document.getElementById('msg').innerText = "⏳ جاري تحميل البيانات...";
+        const status = document.getElementById('status');
+        status.innerText = "⏳ جاري الاتصال بالسيرفر...";
         try {
             const response = await fetch(sheetUrl);
             const text = await response.text();
-            const lines = text.split('\n');
-            const headers = lines[0].split(',').map(h => h.trim());
+            const lines = text.split('\n').filter(line => line.trim() !== "");
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
 
             studentsData = lines.slice(1).map(line => {
-                const values = line.split(',');
+                const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
                 let obj = {};
-                headers.forEach((h, i) => { if(values[i]) obj[h] = values[i].trim(); });
+                headers.forEach((h, i) => { obj[h] = values[i]; });
                 return obj;
             });
-            document.getElementById('msg').innerText = "✅ البيانات جاهزة";
+            status.innerText = "✅ النظام جاهز للاستخدام";
+            status.style.color = "green";
         } catch (e) {
-            document.getElementById('msg').innerText = "❌ فشل الاتصال بالملف";
+            status.innerText = "⚠️ فشل في جلب البيانات. تأكدي من الرابط!";
+            status.style.color = "red";
         }
     }
 
@@ -69,30 +76,26 @@
         const body = document.getElementById('gradesBody');
         const info = document.getElementById('studentInfo');
 
-        // البحث بمرونة: يدور على أي خانة رقمها يطابق المدخل
-        const student = studentsData.find(s => Object.values(s).includes(seat));
+        // البحث بذكاء في كل الخانات عن رقم الجلوس
+        const student = studentsData.find(s => Object.values(s).some(val => val === seat));
 
         if (student) {
             card.style.display = 'block';
-            document.getElementById('msg').innerText = "";
-            
-            // محاولة إيجاد الاسم
-            let name = "غير معروف";
+            let name = "";
             for(let k in student) { if(k.includes("اسم")) name = student[k]; }
             
-            info.innerHTML = `<h3>الاسم: ${name}</h3>`;
+            info.innerHTML = `<h3>الاسم: ${name}</h3><p style="margin:0">رقم الجلوس: ${seat}</p>`;
             
             let rows = "";
             for (let key in student) {
-                if (!key.includes("اسم") && !key.includes("جلوس") && student[key]) {
+                if (!key.includes("اسم") && !key.includes("جلوس") && !key.includes("رقم") && student[key]) {
                     rows += `<tr><td>${key}</td><td><b>${student[key]}</b></td></tr>`;
                 }
             }
             body.innerHTML = rows;
         } else {
             card.style.display = 'none';
-            document.getElementById('msg').innerText = "❌ رقم الجلوس غير موجود";
-            document.getElementById('msg').style.color = "red";
+            alert("رقم الجلوس غير موجود في قاعدة البيانات!");
         }
     }
 </script>
