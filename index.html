@@ -3,84 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بوابة نتائج مدرسة الحصايا</title>
+    <title>نتائج مدرسة الحصايا الثانوية</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        :root { --main: #e67e22; --bg: #fdf5e6; }
+        :root { --primary: #e67e22; --bg: #fdf5e6; }
         body { font-family: 'Cairo', sans-serif; background: var(--bg); margin: 0; padding: 20px; text-align: center; }
-        .card { background: white; padding: 30px; border-radius: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
-        input { width: 100%; padding: 15px; margin: 10px 0; border: 1px solid #ddd; border-radius: 12px; box-sizing: border-box; text-align: center; font-size: 16px; }
-        button { width: 100%; padding: 15px; background: var(--main); color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .admin-zone { margin-top: 30px; border: 2px dashed #ccc; padding: 15px; border-radius: 15px; background: #fafafa; }
-        table { width: 100%; margin-top: 20px; border-collapse: collapse; }
-        th, td { border: 1px solid #eee; padding: 10px; text-align: center; }
-        th { background: var(--main); color: white; }
+        .container { max-width: 500px; margin: auto; background: white; padding: 30px; border-radius: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        h1 { color: var(--primary); margin-bottom: 10px; }
+        input { width: 100%; padding: 15px; margin: 15px 0; border: 2px solid #eee; border-radius: 12px; text-align: center; font-family: 'Cairo'; font-size: 18px; }
+        button { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 18px; }
+        #status { font-size: 12px; margin-top: 10px; color: #888; }
+        .result-card { margin-top: 25px; background: #fff; padding: 20px; border-radius: 20px; border: 1px solid #eee; text-align: right; }
+        table { width: 100%; margin-top: 15px; border-collapse: collapse; }
+        th, td { padding: 10px; border: 1px solid #f2f2f2; text-align: center; }
+        th { background: var(--primary); color: white; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h1 style="color: var(--main); margin-bottom: 5px;">مدرسة الحصايا الثانوية</h1>
-    <p style="color: #666;">استعلم عن نتيجتك برقم الجلوس</p>
+<div class="container">
+    <h1>مدرسة الحصايا الثانوية 🏫</h1>
+    <p>أدخل رقم الجلوس للاستعلام عن النتيجة</p>
 
-    <input type="text" id="seatNum" placeholder="أدخل رقم الجلوس فقط">
+    <input type="text" id="seatNum" placeholder="أدخل رقم الجلوس هنا">
     <button onclick="search()">بحث عن النتيجة</button>
-    <div id="result"></div>
-
-    <div class="admin-zone">
-        <p style="font-size: 12px; color: #888;">لوحة الإدارة: ارفعي ملف عادل.xlsx هنا 👇</p>
-        <input type="file" id="uploadFile" accept=".xlsx, .xls" style="font-size: 11px;">
-        <p id="status" style="font-size: 12px; color: green;"></p>
-    </div>
+    
+    <div id="status">جاري الاتصال بقاعدة البيانات...</div>
+    <div id="resultArea"></div>
 </div>
 
 <script>
-    let db = [];
+    // 🔗 الرابط اللي إنتي بعتيه حطيتهولك هنا
+    const driveUrl = "https://drive.google.com/file/d/1_OJ_JZLOb5oMTZaof0bHro9GW7qzxJdZ/view?usp=drivesdk";
+    
+    // تحويل رابط الدرايف لرابط تحميل مباشر عشان الكود يقرأه
+    const fileId = driveUrl.match(/[-\w]{25,}/);
+    const downloadUrl = `https://docs.google.com/spreadsheets/d/${fileId}/export?format=csv`;
 
-    // 1. المحرك اللي بيفهم أي ملف إكسيل ترفعيه
-    document.getElementById('uploadFile').addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        const reader = new FileReader();
-        
-        reader.onload = function(event) {
-            const data = new Uint8Array(event.target.result);
-            const workbook = XLSX.read(data, {type: 'array'});
-            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-            // تحويل الإكسيل لبيانات بيفهمها الموقع
-            db = XLSX.utils.sheet_to_json(firstSheet);
-            document.getElementById('status').innerText = "✅ تم ربط الملف بنجاح! جاهز للبحث.";
-        };
-        reader.readAsArrayBuffer(file);
-    });
+    let studentDB = [];
 
-    // 2. وظيفة البحث برقم الجلوس
+    // وظيفة جلب البيانات من الرابط أوتوماتيكياً
+    async function loadData() {
+        try {
+            const response = await fetch(downloadUrl);
+            const data = await response.text();
+            const workbook = XLSX.read(data, {type: 'string'});
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            studentDB = XLSX.utils.sheet_to_json(sheet);
+            document.getElementById('status').innerText = "✅ البيانات متصلة وجاهزة";
+        } catch (error) {
+            document.getElementById('status').innerText = "❌ تأكدي من جعل ملف الدرايف (Anyone with the link can view)";
+            console.error(error);
+        }
+    }
+
+    loadData();
+
     function search() {
         const code = document.getElementById('seatNum').value.trim();
-        const output = document.getElementById('result');
+        const output = document.getElementById('resultArea');
 
-        if (db.length === 0) {
-            output.innerHTML = "<p style='color:red'>برجاء رفع ملف الإكسيل أولاً من لوحة الإدارة!</p>";
+        if (studentDB.length === 0) {
+            alert("البيانات لم تكتمل بعد، انتظر ثواني.");
             return;
         }
 
-        // الموقع هيدور في عمود "رقم الجلوس" (تأكدي إن ده اسمه في ملفك)
-        const student = db.find(s => String(s["رقم الجلوس"]) === code || String(s["رقم_الجلوس"]) === code);
+        // البحث بذكاء عن "رقم الجلوس"
+        const student = studentDB.find(s => {
+            for(let key in s) {
+                if((key.includes("جلوس") || key.includes("رقم")) && String(s[key]) === code) return true;
+            }
+            return false;
+        });
 
         if (student) {
-            let resHtml = `<div style="margin-top:20px; text-align:right;">
-                <b>الاسم: ${student["الاسم"] || "غير مسجل"}</b>
-                <table><tr><th>المادة</th><th>الدرجة</th></tr>`;
-            
+            let name = "";
+            for(let key in student) { if(key.includes("اسم")) name = student[key]; }
+
+            let html = `<div class="result-card"><h3>الاسم: ${name}</h3><table><tr><th>المادة</th><th>الدرجة</th></tr>`;
             for (let key in student) {
-                if (key !== "الاسم" && key !== "رقم الجلوس" && key !== "رقم_الجلوس") {
-                    resHtml += `<tr><td>${key}</td><td>${student[key]}</td></tr>`;
+                if (!key.includes("اسم") && !key.includes("جلوس") && !key.includes("رقم")) {
+                    html += `<tr><td>${key}</td><td>${student[key]}</td></tr>`;
                 }
             }
-            resHtml += `</table></div>`;
-            output.innerHTML = resHtml;
+            html += `</table></div>`;
+            output.innerHTML = html;
         } else {
-            output.innerHTML = "<p style='color:red'>رقم الجلوس غير موجود في الملف!</p>";
+            output.innerHTML = "<p style='color:red; margin-top:20px;'>رقم الجلوس غير موجود!</p>";
         }
     }
 </script>
