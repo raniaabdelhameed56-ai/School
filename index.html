@@ -154,27 +154,30 @@
 
         try {
             const response = await fetch(links[grade]);
+            if (!response.ok) throw new Error();
+            
             const text = await response.text();
             const rows = text.split('\n').map(r => r.split(','));
             const headers = rows[0];
-            const student = rows.find(r => r[0].trim() === seat);
+            
+            // البحث عن رقم الجلوس مع إزالة أي فراغات زائدة قد تأتي من ملف الإكسيل
+            const student = rows.find(r => r[0] && r[0].trim() === seat);
 
             if(student) {
-                document.getElementById('stName').innerText = "الطالب: " + student[1];
+                document.getElementById('stName').innerText = "الطالب: " + student[1].trim();
                 const table = document.getElementById('resTable');
                 table.innerHTML = "";
                 for(let i=2; i < headers.length; i++) {
                     if(headers[i] && headers[i].trim() !== "") {
-                        table.innerHTML += `<tr><td class="subject">${headers[i]}</td><td class="score">${student[i]}</td></tr>`;
+                        table.innerHTML += `<tr><td class="subject">${headers[i].trim()}</td><td class="score">${student[i].trim()}</td></tr>`;
                     }
                 }
-                // إخفاء البحث وإظهار صفحة النتيجة
+                // إخفاء البحث وإظهار صفحة النتيجة الكاملة
                 document.getElementById('searchCard').style.display = 'none';
                 document.getElementById('resultPage').style.display = 'flex';
-            } else { alert("رقم الجلوس غير موجود!"); }
-        } catch(e) { alert("خطأ في الاتصال بالبيانات"); }
-    }
-
+            } else { alert("رقم الجلوس غير موجود في هذا الصف!"); }
+        } catch(e) { alert("خطأ في جلب البيانات، يرجى التحقق من اتصال الإنترنت."); }
+                                                                                                                 }
     function goBack() {
         document.getElementById('resultPage').style.display = 'none';
         document.getElementById('searchCard').style.display = 'block';
