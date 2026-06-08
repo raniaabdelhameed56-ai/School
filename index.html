@@ -57,7 +57,7 @@
             box-shadow: 0 10px 20px rgba(211, 125, 61, 0.2);
         }
 
-        /* صفحة النتيجة المستقلة (Full Screen Overlay) */
+        /* صفحة النتيجة المستقلة */
         #resultPage {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: var(--beige); z-index: 1000; display: none;
@@ -114,7 +114,7 @@
         <button class="btn-search" onclick="showResult()">كشف النتيجة ✨</button>
     </div>
 
-    <div class="credit">Designed by: <b>Rania Abdelhamid Badry</b></div>
+    <div class="credit">تطوير وبرمجة: <b>المهندسة Rania Abdelhamid</b></div>
 </div>
 
 <div id="resultPage">
@@ -129,7 +129,7 @@
 </div>
 
 <script>
-    // توليد الأيقونات في الخلفية برمجياً لزيادة الحركات
+    // توليد الأيقونات في الخلفية
     const container = document.getElementById('iconsContainer');
     const icons = ['📚', '🧪', '📐', '✏️', '📖', '🎓'];
     for(let i=0; i<20; i++) {
@@ -142,10 +142,15 @@
         container.appendChild(span);
     }
 
+    // تم تغيير المخرج إلى tsv لحل مشكلة اختفاء الدرجات واللخبطة تماماً
     const links = {
-        "1": "https://docs.google.com/spreadsheets/d/e/2PACX-1vS7LAYZtN1zw1wOMnxDChh99oqXpk83FOrYcmmNjLNJ27A3Ok411ZkKVbjHc5Nl8g/pub?gid=583265183&single=true&output=csv",
-        "2": "https://docs.google.com/spreadsheets/d/e/2PACX-1vS7LAYZtN1zw1wOMnxDChh99oqXpk83FOrYcmmNjLNJ27A3Ok411ZkKVbjHc5Nl8g/pub?gid=253794458&single=true&output=csv"
+        "1": "https://docs.google.com/spreadsheets/d/e/2PACX-1vS7LAYZtN1zw1wOMnxDChh99oqXpk83FOrYcmmNjLNJ27A3Ok411ZkKVbjHc5Nl8g/pub?gid=253794458&single=true&output=tsv",
+        "2": "https://docs.google.com/spreadsheets/d/e/2PACX-1vS7LAYZtN1zw1wOMnxDChh99oqXpk83FOrYcmmNjLNJ27A3Ok411ZkKVbjHc5Nl8g/pub?gid=583265183&single=true&output=csv" 
     };
+
+    // نقوم بتعديل الرابط تلقائياً لضمان قراءة tsv بشكل سليم وموحد لكل الصفوف
+    links["1"] = links["1"].replace("output=csv", "output=tsv");
+    links["2"] = links["2"].replace("output=csv", "output=tsv");
 
     async function showResult() {
         const grade = document.getElementById('grade').value;
@@ -157,27 +162,33 @@
             if (!response.ok) throw new Error();
             
             const text = await response.text();
-            const rows = text.split('\n').map(r => r.split(','));
+            // الفصل باستخدام التاب \t بدقة متناهية لتفادي مشاكل الفواصل العربية
+            const rows = text.split('\n').map(r => r.split('\t'));
             const headers = rows[0];
             
-            // البحث عن رقم الجلوس مع إزالة أي فراغات زائدة قد تأتي من ملف الإكسيل
             const student = rows.find(r => r[0] && r[0].trim() === seat);
 
             if(student) {
                 document.getElementById('stName').innerText = "الطالب: " + student[1].trim();
                 const table = document.getElementById('resTable');
                 table.innerHTML = "";
-                for(let i=2; i < headers.length; i++) {
+                
+                for(let i = 2; i < headers.length; i++) {
                     if(headers[i] && headers[i].trim() !== "") {
-                        table.innerHTML += `<tr><td class="subject">${headers[i].trim()}</td><td class="score">${student[i].trim()}</td></tr>`;
+                        let scoreVal = student[i] ? student[i].trim() : "-";
+                        table.innerHTML += `<tr><td class="subject">${headers[i].trim()}</td><td class="score">${scoreVal}</td></tr>`;
                     }
                 }
-                // إخفاء البحث وإظهار صفحة النتيجة الكاملة
                 document.getElementById('searchCard').style.display = 'none';
                 document.getElementById('resultPage').style.display = 'flex';
-            } else { alert("رقم الجلوس غير موجود في هذا الصف!"); }
-        } catch(e) { alert("خطأ في جلب البيانات، يرجى التحقق من اتصال الإنترنت."); }
-                                                                                                                 }
+            } else { 
+                alert("رقم الجلوس غير موجود في هذا الصف!"); 
+            }
+        } catch(e) { 
+            alert("خطأ في جلب البيانات، يرجى التحقق من اتصال الإنترنت."); 
+        }
+    }
+
     function goBack() {
         document.getElementById('resultPage').style.display = 'none';
         document.getElementById('searchCard').style.display = 'block';
